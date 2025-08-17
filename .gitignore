@@ -1,0 +1,53 @@
+# --- Core .NET / Visual Studio / Rider ---
+**/bin/
+**/obj/
+.vs/
+.idea/
+.fleet/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.ide/
+
+# VS Code (optional)
+.vscode/
+
+# Build & test artifacts
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+.nuget/packages/
+
+# Logs
+*.log
+logs/
+Log/
+Serilog*.json
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Node (if your UI uses it)
+**/node_modules/
+**/dist/
+**/build/
+
+# --- Config you DON'T want in Git (API keys, etc.) ---
+# Block all appsettings in any project:
+**/appsettings.json
+**/appsettings.*.json
+
+# Allow a safe template to guide teammates:
+!**/appsettings.Template.json
+
+# Environment files
+.env
+.env.*
+

@@ -1,0 +1,91 @@
+@page "/login"
+@using System.ComponentModel.DataAnnotations
+@using Blazored.LocalStorage
+@using HerramientasGyP.Api.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService localStorage
+@inject NotificationService NotificationService
+
+<RadzenAlert Visible="isWaiting" AllowClose="false" AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter">
+    Revise su correo para confirmar inicio de sesión.
+</RadzenAlert>
+
+<div style="height: 100%; display: flex; justify-content: center; align-items: center;">
+    <RadzenCard Class="rz-shadow-2 rz-m-4" Style="max-width: 900px; width: 100%;">
+        <RadzenRow>
+            <!-- Left Column -->
+            <RadzenColumn Width="50%">
+                <h1 class="text-center">Bienvenido!</h1>
+                <img src="Resources/INBLENSA%20LOGO.png" alt="Logo" style="max-width: 100%; padding: 1rem;" />
+            </RadzenColumn>
+
+            <!-- Right Column -->
+            <RadzenColumn Width="50%">
+                <RadzenTemplateForm Data="@loginModel" TItem="LoginModel" Submit="@HandleLogin">
+                    <RadzenFieldset Text="Iniciar Sesión">
+                            
+                        <RadzenLabel Text="Cédula" Style="margin-top:1rem;" Component="docId" />
+                        <RadzenTextBox Name="docId" @bind-Value="loginModel.PersonDocumentId" Style="width:100%" Disabled="isWaiting" />
+                        <RadzenDataAnnotationValidator Component="docId" Popup="true" />
+
+                        <RadzenLabel Text="Correo" Style="margin-top:1rem;" Component="email" />
+                        <RadzenTextBox Name="email" @bind-Value="loginModel.ApplicationUserEmail" Style="width:100%" Disabled="isWaiting"/>
+                        <RadzenDataAnnotationValidator Style="z-index: 99" Component="email" Popup="true" />
+                        <RadzenEmailValidator Style="z-index: 99" Component="email" Text="Correo invalido" Popup="true" />
+                        
+                            
+                        <RadzenButton Text="Login" ButtonType="ButtonType.Submit" Style="margin-top:1.5rem;" />
+                    </RadzenFieldset>
+                </RadzenTemplateForm>
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenCard>
+</div>
+
+@code {
+    private LoginModel loginModel = new();
+    
+    private bool isWaiting = false;
+    private CancellationTokenSource pollingCts;
+    
+    private async Task HandleLogin()
+    {
+        isWaiting = true;
+
+        await Task.Delay(100000);
+        var response = await Http.PostAsJsonAsync("users/login", loginModel);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            isWaiting = true;
+            
+            pollingCts = new CancellationTokenSource();
+            await PollForJwtAsync(loginModel.ApplicationUserEmail, pollingCts.Token);
+        }
+        else
+        {
+            // silently fail or show error — for now, minimal
+        }
+    }
+
+    private async Task PollForJwtAsync(string email, CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            await Task.Delay(3000, token);
+
+            var pollResponse = await Http.PostAsJsonAsync("users/polllogin", email);
+            if (pollResponse.IsSuccessStatusCode)
+            {
+                var jwt = await pollResponse.Content.ReadAsStringAsync();
+                if (!string.IsNullOrWhiteSpace(jwt))
+                {
+                    await localStorage.SetItemAsync("authToken", jwt);
+                    pollingCts.Cancel();
+                    Navigation.NavigateTo("/");
+                }
+            }
+        }
+    }
+}

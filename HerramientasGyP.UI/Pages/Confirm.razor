@@ -1,0 +1,69 @@
+@page "/Confirm"
+@inject NavigationManager Navigation
+@inject HttpClient Http
+
+<h3>Verifying your login link...</h3>
+
+@code {
+    private string? sessionId;
+    private string? token;
+    private bool isLoaded = false;
+
+    protected override void OnInitialized()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("sessionId", out var sid) &&
+        query.TryGetValue("token", out var tok))
+        {
+            sessionId = sid;
+            token = tok;
+
+            _ = ConfirmLoginAsync(); // fire-and-forget
+        }
+        else
+        {
+            // Handle missing query parameters here
+        }
+    }
+
+    private async Task ConfirmLoginAsync()
+    {
+        try
+        {
+            var payload = new {sessionId, token};
+
+            var response = await Http.PostAsJsonAsync($"/api/user/ConfirmEmail?sessionId={sessionId}&token={token}", payload);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = response.Content.ToString();
+                var result = await response.Content.ReadFromJsonAsync<LoginResponse>();
+                var jwt = result?.Jwt;
+
+                // ✅ Here you would store the JWT (e.g., in localStorage)
+                // and redirect the user to /home
+
+                // await localStorage.SetItemAsync("authToken", jwt);
+                // Navigation.NavigateTo("/home");
+
+                isLoaded = true;
+            }
+            else
+            {
+                // ❌ Show error: link expired or invalid
+            }
+        }
+        catch (Exception ex)
+        {
+            // ❌ Log or show error
+        }
+    }
+
+    private class LoginResponse
+    {
+        public bool Success { get; set; }
+        public string Jwt { get; set; } = string.Empty;
+    }
+}
