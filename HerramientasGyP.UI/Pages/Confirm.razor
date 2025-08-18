@@ -34,7 +34,7 @@
         {
             var payload = new {sessionId, token};
 
-            var response = await Http.PostAsJsonAsync($"/api/user/ConfirmEmail?sessionId={sessionId}&token={token}", payload);
+            var response = await Http.PostAsJsonAsync($"https://localhost:7245/api/user/ConfirmEmail?sessionId={sessionId}&token={token}", payload);
             
             if (response.IsSuccessStatusCode)
             {

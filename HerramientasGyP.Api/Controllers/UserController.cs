@@ -99,7 +99,7 @@ public class UserController : ControllerBase
         await _applicationDbContext.SaveChangesAsync();
 
         string frontendBase = "https://localhost:7136"; // e.g., "https://yourfrontend.com"
-        string link = $"{frontendBase}/confirm?sessionId={session.Id}&token={token}";
+        string link = $"{frontendBase}/confirm?sessionId={session.Id}&token={Uri.EscapeDataString(token)}";
 
 
         string smtpHost = _configuration["EmailSettings:SmtpServer"];
