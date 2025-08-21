@@ -1,0 +1,57 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+  DOTNET_NOLOGO: "true"
+
+# Build API
+build_api:
+  stage: build
+  tags:
+    - windows  # Make sure this matches your runner's tag
+  script:
+    - dotnet restore HerramientasGyP.Api/HerramientasGyP.Api.csproj
+    - dotnet publish HerramientasGyP.Api/HerramientasGyP.Api.csproj -c Release -o publish/api
+  artifacts:
+    paths:
+      - publish/api/
+
+# Build UI (Blazor WASM)
+build_ui:
+  stage: build
+  tags:
+    - windows
+  script:
+    - dotnet restore HerramientasGyP.UI/HerramientasGyP.UI.csproj
+    - dotnet publish HerramientasGyP.UI/HerramientasGyP.UI.csproj -c Release -o publish/ui
+  artifacts:
+    paths:
+      - publish/ui/
+
+# Deploy API to IIS
+deploy_api:
+  stage: deploy
+  tags:
+    - windows
+  script:
+    - echo "Deploying API to IIS..."
+    - Remove-Item -Recurse -Force "C:\inetpub\wwwroot\BE\*"  # clear old files
+    - Copy-Item -Recurse -Force publish/api/* "C:\inetpub\wwwroot\BE"
+  dependencies:
+    - build_api
+
+# Deploy UI (Blazor) to IIS
+deploy_ui:
+  stage: deploy
+  tags:
+    - windows
+  script:
+    - echo "Deploying UI to IIS..."
+    - Remove-Item -Recurse -Force "C:\inetpub\wwwroot\FE\*" 
+    - Copy-Item -Recurse -Force publish/ui/* "C:\inetpub\wwwroot\FE"
+  dependencies:
+    - build_ui
+
