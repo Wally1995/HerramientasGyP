@@ -7,51 +7,58 @@ namespace HerramientasGyP.UI;
 
 public class ApiAuthenticationStateProvider : AuthenticationStateProvider
 {
-    private readonly ILocalStorageService _storage;
-    private static readonly ClaimsPrincipal Anonymous = new(new ClaimsIdentity());
+    private readonly ILocalStorageService _localStorage;
+    private readonly JwtSecurityTokenHandler _jwt = new();
 
-    public ApiAuthenticationStateProvider(ILocalStorageService storage) => _storage = storage;
+    public ApiAuthenticationStateProvider(ILocalStorageService localStorage)
+        => _localStorage = localStorage;
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
-        var jwt = await _storage.GetItemAsStringAsync("authToken");
-        if (string.IsNullOrWhiteSpace(jwt) || IsExpired(jwt))
-            return new AuthenticationState(Anonymous);
+        var anon = new ClaimsPrincipal(new ClaimsIdentity());
+        var token = await _localStorage.GetItemAsync<string>("accessToken");
+        if (string.IsNullOrWhiteSpace(token)) return new AuthenticationState(anon);
 
-        var identity = new ClaimsIdentity(ParseClaims(jwt), "jwt");
-        return new AuthenticationState(new ClaimsPrincipal(identity));
-    }
-
-    public async Task SignInAsync(string jwt)
-    {
-        await _storage.SetItemAsStringAsync("authToken", jwt);
-        NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
-    }
-
-    public async Task SignOutAsync()
-    {
-        await _storage.RemoveItemAsync("authToken");
-        NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
-    }
-
-    // —— minimal parser tuned to your token shape ——
-    private static IEnumerable<Claim> ParseClaims(string jwt)
-    {
-        var token = new JwtSecurityTokenHandler().ReadJwtToken(jwt);
-        var claims = token.Claims.ToList();
-
-        // Convenience: add Name for UI from NameIdentifier or Email
-        var nameId = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-        if (!string.IsNullOrWhiteSpace(nameId))
-            claims.Add(new Claim(ClaimTypes.Name, nameId));
-        else
+        var jwt = _jwt.ReadJwtToken(token);
+        if (jwt.ValidTo <= DateTime.UtcNow)
         {
-            var email = claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
-            if (!string.IsNullOrWhiteSpace(email))
-                claims.Add(new Claim(ClaimTypes.Name, email));
+            await _localStorage.RemoveItemAsync("accessToken");
+            return new AuthenticationState(anon);
         }
 
-        // Roles already come as ClaimTypes.Role from your API — no normalization needed.
+        var user = new ClaimsPrincipal(new ClaimsIdentity(ParseClaims(jwt), "jwt"));
+        return new AuthenticationState(user);
+    }
+
+    public async Task LoggedIn()
+    {
+        var token = await _localStorage.GetItemAsync<string>("accessToken");
+        if (string.IsNullOrWhiteSpace(token)) return;
+
+        var jwt = _jwt.ReadJwtToken(token);
+        var user = new ClaimsPrincipal(new ClaimsIdentity(ParseClaims(jwt), "jwt"));
+        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(user)));
+    }
+
+    public async Task LoggedOut()
+    {
+        await _localStorage.RemoveItemAsync("accessToken");
+        var anon = new ClaimsPrincipal(new ClaimsIdentity());
+        NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anon)));
+    }
+
+    // Minimal: your API already emits ClaimTypes.Role and NameIdentifier
+    private static List<Claim> ParseClaims(JwtSecurityToken token)
+    {
+        var claims = token.Claims.ToList();
+
+        // Convenience: ensure a Name claim for UI (use sub/NameIdentifier/email/subject)
+        var nameId = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+        var email  = claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
+        var name   = !string.IsNullOrWhiteSpace(token.Subject) ? token.Subject : (nameId ?? email);
+        if (!string.IsNullOrWhiteSpace(name))
+            claims.Add(new Claim(ClaimTypes.Name, name));
+
         return claims;
     }
 
