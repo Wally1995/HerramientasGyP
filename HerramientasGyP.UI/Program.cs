@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using HerramientasGyP.UI;
 using HerramientasGyP.UI.HttpServices;
-using Microsoft.Extensions.Http;
 using Microsoft.AspNetCore.Components.Authorization;
 using Radzen;
 

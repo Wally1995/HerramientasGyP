@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject ILocalStorageService localStorage
 @inject NotificationService NotificationService
+@attribute [AllowAnonymous]
 
 <RadzenAlert Visible="isWaiting" AllowClose="false" AlertStyle="AlertStyle.Info" Variant="Variant.Flat" Shade="Shade.Lighter">
     Revise su correo para confirmar inicio de sesión.
